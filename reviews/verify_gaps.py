@@ -20,7 +20,7 @@ from agent_inventory.__main__ import scan, main
 def verify():
     findings = {}
     with tempfile.TemporaryDirectory() as temporary:
-        base = Path(temporary)
+        base = Path(temporary).resolve()
         root = base / 'project'
         root.mkdir()
         (root / 'agent-card.json').write_text('{"id":"review-fixture"}', encoding='utf-8')

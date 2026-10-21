@@ -18,7 +18,7 @@ from agent_inventory.scheduled import main as scheduled_main
 class InventoryTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
-        self.base = Path(self.temp.name)
+        self.base = Path(self.temp.name).resolve()
         self.root = self.base / 'agent with spaces'
         self.root.mkdir()
         self.write('agent-card.json', json.dumps({'id': 'test-agent', 'name': 'Test', 'owner': 'Team'}))
