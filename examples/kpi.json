@@ -1,0 +1,13 @@
+{
+  "name": "평균 처리시간",
+  "unit": "minutes",
+  "direction": "lower_is_better",
+  "before": 60,
+  "after": 40,
+  "baseline_source": "DEMO: before.csv average",
+  "after_source": "DEMO: after.csv average",
+  "baseline_period": "2026-09",
+  "after_period": "2026-10",
+  "cohort": "DEMO: same support task category",
+  "approved_by": "DEMO ONLY"
+}

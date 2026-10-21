@@ -1,0 +1,2 @@
+# Replace paths. Runs every ten minutes; no daemon or remote credentials needed.
+*/10 * * * * cd /opt/agent-inventory && /usr/bin/python3 -m agent_inventory --config /opt/agent-inventory/inventory.config.json scan >> /opt/agent-inventory/scan.log 2>&1

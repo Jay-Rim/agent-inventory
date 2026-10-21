@@ -1,0 +1,11 @@
+.inventory/
+__pycache__/
+*.pyc
+.venv/
+.test-output/
+inventory.local.json
+*.zip
+*.sqlite3*
+*.log
+.env
+.env.*

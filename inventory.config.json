@@ -1,0 +1,14 @@
+{
+  "roots": ["examples"],
+  "discover_host": true,
+  "track_discovered": true,
+  "output": ".inventory",
+  "exclude": [],
+  "discovery_depth": 4,
+  "source_depth": 12,
+  "max_files": 3000,
+  "max_file_bytes": 1000000,
+  "event_files": [],
+  "source_include": [],
+  "source_exclude": ["logs/*", "**/logs/*", "*.log", "*.jsonl"]
+}

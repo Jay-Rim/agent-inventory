@@ -1,0 +1,2 @@
+# Process working directories are required for Windows relative-script discovery.
+psutil>=5.9,<8
