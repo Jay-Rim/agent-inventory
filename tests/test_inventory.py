@@ -49,6 +49,38 @@ class InventoryTests(unittest.TestCase):
         self.assertEqual(card['mcp'][0]['value'], 'search')
         self.assertNotIn('supersecret', json.dumps(card))
 
+    def test_purpose_prefers_root_readme_and_keeps_wrapped_paragraph(self):
+        self.write('.pytest_cache/README.md', '# Cache\n\nUnrelated cache description.')
+        self.write('cloud/README.md', '# Relay\n\nDeployment helper.')
+        self.write('README.md', '# Golf monitor\n\nChecks tee times\nand sends alerts.\n\n## Install\nRun setup.')
+        purpose = analyze(self.root, self.config)['purpose']
+        self.assertEqual(purpose['value'], 'Checks tee times and sends alerts.')
+        self.assertEqual((purpose['source'], purpose['line']), ('README.md', 3))
+
+    def test_purpose_uses_explicit_section_in_other_markdown(self):
+        self.write('AGENTS.md', '# Rules\n\nNever execute target code.')
+        self.write('docs/design.md', '# Design\n\nDraft notes.\n\n## 목적\n음성 파일을 변환하고\n텍스트를 저장합니다.\n\n## 설치\nsetup')
+        purpose = analyze(self.root, self.config)['purpose']
+        self.assertEqual(purpose['value'], '음성 파일을 변환하고 텍스트를 저장합니다.')
+        self.assertEqual(purpose['source'], 'docs/design.md')
+
+    def test_purpose_skips_cache_backup_and_install_commands(self):
+        self.write('.pytest_cache/README.md', 'Cache description')
+        self.write('github-backup-staging/README.md', 'Backup description')
+        self.write('README.md', '# Project\n\n## Install\n```sh\nrun installer\n```\n\n## Features\n- Detect changes\n- Send alerts\n')
+        self.assertEqual(analyze(self.root, self.config)['purpose']['value'], '- Detect changes - Send alerts')
+        (self.root / 'README.md').unlink()
+        self.assertIsNone(analyze(self.root, self.config)['purpose'])
+
+    def test_declared_purpose_takes_precedence_over_documents(self):
+        self.write('agent-card.json', '{"purpose":"Reviewed purpose"}')
+        self.write('README.md', '# Project\n\nUnreviewed description.')
+        self.assertEqual(analyze(self.root, self.config)['purpose']['method'], 'declared')
+
+    def test_plain_readme_title_does_not_replace_description(self):
+        self.write('README.md', '레슨 알림 사용 매뉴얼\n\n빈자리를 확인하고\n알림을 보냅니다.\n')
+        self.assertEqual(analyze(self.root, self.config)['purpose']['value'], '빈자리를 확인하고 알림을 보냅니다.')
+
     def test_changes_preserve_approved_snapshot_and_require_new_review(self):
         first = analyze(self.root, self.config)
         self.assertTrue(self.registry.save(first))

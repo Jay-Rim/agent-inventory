@@ -153,6 +153,8 @@ python -m agent_inventory kpi examples/kpi.json
 
 ## 검증 및 범위
 
+목적은 `agent-card.json`의 선언을 우선 사용합니다. 선언이 없으면 최상위 `README.md`의 소개 문단을 줄바꿈에 관계없이 수집하고, 다른 Markdown의 목적·개요·주요 기능(Purpose/Overview/Features/What it does) 절을 찾습니다. 최상위 문서를 하위 문서보다 우선하며, 숨김 디렉터리·vendor·backup·backups·github-backup-staging 문서는 목적 후보에서 제외합니다. 코드 블록과 설치 절은 목적에 사용하지 않습니다. 추출 문구에는 출처 파일과 시작 행을 저장하며, 근거가 없으면 목적은 비워 둡니다. 이번 기능은 문서 발췌이며 AI 요약이나 코드 기반 목적 추론은 수행하지 않습니다.
+
 ```powershell
 python -m unittest discover -s tests -v
 python -m reviews.verify_gaps

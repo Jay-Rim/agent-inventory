@@ -57,6 +57,64 @@ def safe_url(value):
         return '[invalid-url]'
 
 
+def document_purpose(files):
+    """Prefer project introductions; other documents need a purpose heading."""
+    candidates = []
+    for source, raw in files.items():
+        path = Path(source)
+        if path.suffix.lower() != '.md' or any(
+                part.startswith('.') or part.lower() in {'vendor', 'backup', 'backups', 'github-backup-staging'}
+                for part in path.parts[:-1]):
+            continue
+        name = path.name.lower()
+        readme = name == 'readme.md'
+        rank = 0 if readme and len(path.parts) == 1 else 1 if len(path.parts) == 1 else 2
+        candidates.append((rank, len(path.parts), source, raw, readme))
+    for _, _, source, raw, readme in sorted(candidates):
+        lines = raw.decode('utf-8-sig', errors='replace').splitlines()
+        enabled = readme
+        paragraph, start = [], None
+        fence = None
+        frontmatter = False
+        for i, line in enumerate(lines + [''], 1):
+            value = line.strip()
+            if i == 1 and value == '---':
+                frontmatter = True
+                continue
+            if frontmatter:
+                if value == '---':
+                    frontmatter = False
+                continue
+            if value.startswith(('```', '~~~')):
+                marker = value[:3]
+                fence = None if fence == marker else marker
+                continue
+            if fence:
+                continue
+            heading = re.match(r'^#{1,6}\s+(.+)', value)
+            boundary = not value or heading or value.startswith(('|', '![', '[!', '<', '---'))
+            if boundary and paragraph:
+                return field(safe_text(' '.join(paragraph)), source, 'markdown-excerpt', start)
+            if heading:
+                title = heading.group(1).strip().lower()
+                enabled = title in {'목적', '개요', '프로젝트 개요', '주요 기능', '기능',
+                                    'purpose', 'overview', 'introduction', 'features', 'what it does'}
+                if value.startswith('# ') and readme:
+                    enabled = True
+                continue
+            if boundary or not enabled:
+                continue
+            # Plain titles are common in local READMEs; use the following paragraph.
+            if i == 1 and readme and len(lines) > 1 and not lines[1].strip():
+                continue
+            if re.match(r'^\[[^]]+\]\(', value):
+                continue
+            if start is None:
+                start = i
+            paragraph.append(value)
+    return None
+
+
 def analyze(root, config):
     root = Path(root).resolve()
     files, warnings = {}, []
@@ -103,6 +161,8 @@ def analyze(root, config):
     for key in ('name', 'purpose', 'owner'):
         if isinstance(manifest.get(key), str):
             card[key] = field(safe_text(manifest[key]), 'agent-card.json', 'declared')
+    if not card['purpose']:
+        card['purpose'] = document_purpose(files)
     dep_seen = set()
     def dependency(name, source, line):
         normalized = name.split('.')[0].lower().replace('-', '_')
@@ -118,11 +178,6 @@ def analyze(root, config):
         content = raw.decode('utf-8-sig', errors='replace')
         name = Path(source).name.lower()
         lines = content.splitlines()
-        if name.startswith('readme') and not card['purpose']:
-            for i, line in enumerate(lines, 1):
-                if line.strip() and not line.startswith(('#', '!', '[', '```', '|')):
-                    card['purpose'] = field(safe_text(line.strip()), source, 'readme-excerpt', i)
-                    break
         if name == 'codeowners' and not card['owner']:
             for i, line in enumerate(lines, 1):
                 if line.strip().startswith('* '):
