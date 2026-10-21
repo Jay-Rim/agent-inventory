@@ -41,7 +41,7 @@ python -m agent_inventory watch --interval 30
 | 항목 | 현재 MVP 동작 |
 |---|---|
 | Agent 후보 | 프로젝트 마커, 소스 파일, 실행/예약 명령의 실제 파일 경로 |
-| Agent 이름·목적 | agent-card.json 선언 또는 폴더명·README 첫 본문 |
+| Agent 이름·목적 | agent-card.json 선언, MD 발췌 또는 선택적 LLM 목적 요약 |
 | Owner | 명시 메타데이터 또는 CODEOWNERS의 전역 소유자 후보 |
 | 주요 기능 | Python 함수명과 파일·행 위치 |
 | Skill | SKILL.md의 이름·등록 파일 위치 |
@@ -153,7 +153,7 @@ python -m agent_inventory kpi examples/kpi.json
 
 ## 검증 및 범위
 
-목적은 `agent-card.json`의 선언을 우선 사용합니다. 선언이 없으면 최상위 `README.md`의 소개 문단을 줄바꿈에 관계없이 수집하고, 다른 Markdown의 목적·개요·주요 기능(Purpose/Overview/Features/What it does) 절을 찾습니다. 최상위 문서를 하위 문서보다 우선하며, 숨김 디렉터리·vendor·backup·backups·github-backup-staging 문서는 목적 후보에서 제외합니다. 코드 블록과 설치 절은 목적에 사용하지 않습니다. 추출 문구에는 출처 파일과 시작 행을 저장하며, 근거가 없으면 목적은 비워 둡니다. 이번 기능은 문서 발췌이며 AI 요약이나 코드 기반 목적 추론은 수행하지 않습니다.
+목적은 `agent-card.json`의 선언을 우선 사용합니다. 선언이 없으면 최상위 `README.md`의 소개 문단을 줄바꿈에 관계없이 수집하고, 다른 Markdown의 목적·개요·주요 기능(Purpose/Overview/Features/What it does) 절을 찾습니다. 최상위 문서를 하위 문서보다 우선하며, 숨김 디렉터리·vendor·backup·backups·github-backup-staging 문서는 목적 후보에서 제외합니다. 코드 블록과 설치 절은 목적에 사용하지 않습니다. 추출 문구에는 출처 파일과 시작 행을 저장하며, 근거가 없으면 목적은 비워 둡니다. 이는 LLM을 비활성화했을 때의 문서 발췌 방식입니다. LLM 활성화 시 아래 방식으로 목적 초안을 작성하며 코드 기반 목적 추론은 수행하지 않습니다.
 
 ```powershell
 python -m unittest discover -s tests -v
@@ -166,7 +166,31 @@ Python 3.7 이상 문법으로 구현했습니다. 분석 대상 Python 문법�
 
 Windows 프로세스·예약 작업 조회를 실환경에서 검증했습니다. Linux의 실제 운영 호스트 전체 수집은 별도 검증이 필요합니다. 설치 스크립트 실행이 있어야 해당 PC의 자동 실행이 활성화됩니다. 소스 미수집 경고는 각 Card와 cards_with_warnings에, 수집기 실패는 issues의 code/severity/collector에 기록합니다.
 
-현재 MVP의 분석은 규칙 기반입니다. LLM 목적/기능 요약, RAG 인덱스 내부·문서 연결 관계, 실제 배포 성공 조회, Test/Eval 결과 연동, 중앙 서버 동기화와 인증은 다음 단계입니다. 원본 코드를 외부 LLM에 보내는 기능은 기본 동작에 없습니다.
+기본 분석은 규칙 기반이며, 아래 설정으로 LLM 목적 요약을 선택적으로 활성화할 수 있습니다. RAG 인덱스 내부·문서 연결 관계, 실제 배포 성공 조회, Test/Eval 결과 연동, 중앙 서버 동기화와 인증은 다음 단계입니다.
+
+## LLM으로 Markdown 목적 분석
+
+`inventory.local.json`에 `purpose_llm`을 추가합니다. 기본은 비활성입니다. OpenAI 호환 Chat Completions 엔드포인트와 JSON 응답을 지원하는 모델을 직접 지정하세요. 아래 주소는 로컬 서버 설정 예시이며 서버나 모델을 설치하지 않습니다.
+
+```json
+"purpose_llm": {
+  "enabled": true,
+  "endpoint": "http://localhost:1234/v1/chat/completions",
+  "model": "YOUR_MODEL_ID",
+  "api_key_env": "INVENTORY_LLM_API_KEY"
+}
+```
+
+인증 없는 로컬 서버는 `api_key_env`를 생략합니다. 외부 서버는 HTTPS 전체 호출 주소를 사용합니다. 키 값은 설정 파일에 쓰지 않고, 예약 작업을 실행하는 사용자의 환경변수로 설정합니다. 새 환경변수가 예약 작업에 전달되는지도 확인해야 합니다.
+
+- 수집 범위 안의 Markdown 본문 전체를 읽습니다. 첫 줄이나 특정 제목에 목적이 없어도 분석합니다. 숨김·vendor·백업 디렉터리 문서는 제외합니다. 파일 크기·개수·깊이 제한은 기존 수집 설정을 따릅니다.
+- 수집된 MD 총합이 12만 글자를 넘으면 앞부분만 보내지 않고 실패 상태와 문서 발췌를 유지합니다. 큰 프로젝트는 수집 범위를 줄여야 합니다.
+- 문서는 지시가 아닌 분석 데이터로 전달합니다. 목적은 한국어 초안이며 근거 파일·정확한 인용·행 번호를 저장합니다. 인용 존재를 코드로 검증하지만 의미의 정확성은 담당자가 검수해야 합니다.
+- 문서·모델·설정·프롬프트가 같으면 `.inventory/purpose-cache` 결과를 재사용합니다. 코드만 바뀌면 MD 요약을 다시 호출하지 않습니다. 성공 응답과 근거 부족 응답을 캐시하며 실패는 다음 수집에서 재시도합니다.
+- 선언된 `agent-card.json` 목적은 우선 보존합니다. 연결 실패·잘못된 응답·근거 부족은 Card의 `purpose_analysis`와 경고에 표시하고 기존 문서 발췌를 유지합니다. 승인된 과거 revision은 기존 승인 정책대로 보존합니다.
+- 활성화하면 MD 내용이 지정 서버로 전송됩니다. 키·암호 대입 줄과 URL 세부정보를 가리지만 모든 민감정보 제거를 보장하지 않습니다. 민감 문서는 `source_exclude`로 제외하세요. 원본 소스 코드와 실행 명령은 이 기능에 전송하지 않습니다.
+
+호출 형식 참고: [OpenAI Chat Completions](https://developers.openai.com/api/reference/resources/chat/subresources/completions/methods/create). 실제 호환 서버별 모델 지원 여부는 연결 후 확인해야 합니다.
 
 ## 참고한 GitHub 프로젝트
 

@@ -9,6 +9,7 @@
   "max_files": 3000,
   "max_file_bytes": 1000000,
   "event_files": [],
+  "purpose_llm": {"enabled": false},
   "source_include": [],
   "source_exclude": ["logs/*", "**/logs/*", "*.log", "*.jsonl"]
 }

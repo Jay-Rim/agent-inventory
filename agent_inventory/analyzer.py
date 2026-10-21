@@ -9,6 +9,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 from .discovery import run, walk
+from .purpose_llm import enrich
 
 TEXT = {'.py', '.js', '.ts', '.tsx', '.mjs', '.json', '.toml', '.yaml', '.yml', '.md', '.txt', '.sh', '.ps1', '.bat', '.cmd'}
 LIBRARIES = {'openai', 'anthropic', 'langchain', 'langgraph', 'crewai', 'autogen', 'llama_index', 'transformers'}
@@ -263,5 +264,6 @@ def analyze(root, config):
     names = {x['value'] for x in card['dependencies']}
     card['classification'] = 'agent-candidate' if (manifest or card['skills'] or card['mcp'] or names.intersection(LIBRARIES)) else 'automation-candidate'
     card['source_hash'] = digest(json.dumps({p: digest(b) for p, b in sorted(files.items())}, sort_keys=True).encode('utf-8'))
+    enrich(card, files, config)
     card['revision'] = digest(json.dumps(card, sort_keys=True, ensure_ascii=False).encode('utf-8'))[:16]
     return card
